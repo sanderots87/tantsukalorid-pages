@@ -410,28 +410,6 @@ legend { margin-bottom: .35rem; padding: 0; }
   font-weight: 750;
 }
 .done-button:hover { background-color: var(--stamp); }
-.analytics-notice {
-  width: min(calc(100% - 2rem), 27rem);
-  margin: 0 auto 1rem;
-  padding: .75rem;
-  border: 1px solid var(--line);
-  border-radius: .55rem;
-  background-color: var(--cream);
-  font-size: .84rem;
-}
-.analytics-notice h2 { margin: 0 0 .25rem; color: var(--ink); font-size: 1rem; }
-.analytics-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
-.analytics-actions button {
-  flex: 1 1 7rem;
-  min-height: 2.75rem;
-  padding: .35rem .55rem;
-  border: 1px solid var(--ink);
-  border-radius: .5rem;
-  background: transparent;
-  color: var(--ink);
-  font-weight: 700;
-}
-.analytics-actions button:hover, .analytics-actions button[aria-pressed='true'] { background-color: var(--active); }
 .noscript { padding: .5rem 1rem 1rem; text-align: center; }
 
 @media (max-width: 22rem) {
@@ -472,14 +450,6 @@ legend { margin-bottom: .35rem; padding: 0; }
         </div>
       </div>
     </main>
-    <section class="analytics-notice" id="analytics-notice" aria-labelledby="analytics-title" hidden>
-      <h2 id="analytics-title">Veebianalüütika</h2>
-      <p>Kui lubad analüütika, kasutame külastuste mõõtmiseks Google Analyticsit ja selle küpsiseid. Oma valikut saad muuta menüüs Valikud → Privaatsus.</p>
-      <div class="analytics-actions">
-        <button type="button" data-analytics-choice="granted">Luba</button>
-        <button type="button" data-analytics-choice="denied">Keeldu</button>
-      </div>
-    </section>
     <div class="woven-band home-band home-band-bottom" aria-hidden="true"></div>
 
     <dialog id="menu" aria-labelledby="menu-title">
@@ -614,17 +584,6 @@ legend { margin-bottom: .35rem; padding: 0; }
               <ul>
                 <li><a href="https://pacompendium.com/dancing/">Adult Compendiumi tantsuandmed</a></li>
               </ul>
-            </div>
-          </details>
-          <details id="analytics-settings" hidden>
-            <summary><span>Privaatsus</span><span class="disclosure-note" id="analytics-status" aria-live="polite">Valimata</span></summary>
-            <div class="details-body methodology">
-              <p>Google Analytics mõõdab külastusi ja kasutab selleks kuni 180 päeva kehtivaid küpsiseid. Kalkulaatori sisendid ja tulemused jäävad sinu brauserisse.</p>
-              <p><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer">Kuidas Google andmeid kasutab</a></p>
-              <div class="analytics-actions" role="group" aria-label="Veebianalüütika valikud">
-                <button type="button" data-analytics-choice="granted">Luba</button>
-                <button type="button" data-analytics-choice="denied">Keeldu</button>
-              </div>
             </div>
           </details>
           <p class="hint">Leht valmis OpenAI Codexi abil, kasutades mudelit GPT-6.1 Sol. Maiustuste illustratsioonid on loodud OpenAI pildigeneraatoriga.</p>
@@ -876,91 +835,6 @@ function savePreference(key, value) {
   }
 }
 
-function setupAnalytics() {
-  if (location.protocol !== 'https:') return;
-
-  const measurementId = 'G-D3X5VLER6X';
-  const disableKey = `ga-disable-${measurementId}`;
-  const consentKey = 'tantsukalorid-analytics-consent';
-  const cookiePrefix = 'tantsukalorid';
-  const notice = document.querySelector('#analytics-notice');
-  const status = document.querySelector('#analytics-status');
-  const buttons = document.querySelectorAll('[data-analytics-choice]');
-  let tagStarted = false;
-
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-
-  function applyChoice(choice) {
-    const allowed = choice === 'granted';
-    const denied = choice === 'denied';
-    window[disableKey] = !allowed;
-    notice.hidden = allowed || denied;
-    text(status, allowed ? 'Lubatud' : denied ? 'Keelatud' : 'Valimata');
-    for (const button of buttons) {
-      button.setAttribute('aria-pressed', String(button.dataset.analyticsChoice === choice));
-    }
-
-    if (!allowed) {
-      if (tagStarted) gtag('consent', 'update', { analytics_storage: 'denied' });
-      if (denied || tagStarted) {
-        const sessionSuffix = measurementId.slice(2);
-        for (const name of [`${cookiePrefix}_ga`, `${cookiePrefix}_ga_${sessionSuffix}`]) {
-          document.cookie = `${name}=; Max-Age=0; Path=/; Secure`;
-        }
-      }
-      return;
-    }
-
-    if (tagStarted) {
-      gtag('consent', 'update', { analytics_storage: 'granted' });
-      return;
-    }
-
-    tagStarted = true;
-    window.dataLayer = window.dataLayer || [];
-    gtag('consent', 'default', {
-      analytics_storage: 'denied',
-      ad_storage: 'denied',
-      ad_user_data: 'denied',
-      ad_personalization: 'denied'
-    });
-    gtag('consent', 'update', { analytics_storage: 'granted' });
-    gtag('js', new Date());
-    gtag('config', measurementId, {
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-      cookie_prefix: cookiePrefix,
-      cookie_domain: 'none',
-      cookie_expires: 180 * 24 * 60 * 60,
-      page_location: location.origin + location.pathname
-    });
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.append(script);
-  }
-
-  document.querySelector('#analytics-settings').hidden = false;
-  applyChoice(readPreference(consentKey));
-  for (const button of buttons) {
-    button.addEventListener('click', () => {
-      const choice = button.dataset.analyticsChoice;
-      savePreference(consentKey, choice);
-      applyChoice(choice);
-      if (notice.contains(button)) openMenu.focus({ preventScroll: true });
-    });
-  }
-  window.addEventListener('storage', (event) => {
-    if (event.key === consentKey || event.key === null) applyChoice(readPreference(consentKey));
-  });
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) applyChoice(readPreference(consentKey));
-  });
-}
-
 const savedTheme = readPreference(themeKey);
 for (const option of themes) {
   if (option.value === savedTheme) {
@@ -1002,7 +876,6 @@ menu.addEventListener('close', () => {
 });
 
 render();
-setupAnalytics();
   </script>
 </body>
 </html>
